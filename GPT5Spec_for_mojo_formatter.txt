@@ -1,0 +1,172 @@
+Here’s the updated, implementation-ready spec reflecting all the additions we’ve made (self-test, output to a new file, backup-on-write, and logging).
+
+1) Purpose and scope
+- Goal: Format Mojolicious templates that mix HTML and Embedded Perl.
+- Behavior: Preserve whitespace semantics (especially chomp markers), normalize indentation, and format embedded Perl via perltidy.
+- Deliverables: CLI tool and library API; idempotent formatting.
+
+2) Language and implementation choice 
+- Language: Python 3.10+.
+- Dependencies:
+  - perltidy (Perl::Tidy) on PATH (recommended; required for Perl formatting; formatter still runs without it but doesn’t reformat Perl).
+- Implementation approach: Custom line-oriented lexer/formatter; no HTML rewriter.
+
+3) Supported template syntax (Phase 1)
+- Mojolicious tags: <% ... %>, <%= ... %>, <%== ... %>, <%# ... %>, with optional chomp markers <%- and -%>.
+- Line directives: % ..., %= ..., %== ..., %# ...
+- Block constructs: Perl braces { } and helper begin/end.
+- HTML: all tags, comments, void elements; raw elements (pre, script, style, textarea) treated as opaque.
+
+4) Non-goals (Phase 1)
+- No attribute reflow/wrapping.
+- No text node reflow.
+- No JS/CSS formatting (script/style inner content unchanged).
+- No change to chomp semantics.
+
+5) Formatting rules
+5.1 General whitespace
+- Spaces-only indentation; default width 2.
+- Trim trailing whitespace on each line.
+- Ensure single terminal newline.
+- EOL handling: configurable lf|crlf|preserve (default lf).
+
+5.2 HTML indentation and line breaking
+- Indent by HTML nesting; end tags dedent before emitting the line.
+- Void elements do not change indent depth.
+- Raw elements (pre, script, style, textarea): do not modify inner lines; only indent opening/closing lines.
+
+5.3 Mojolicious delimiters and spacing
+- Preserve chomp markers exactly (<%- and -%>).
+- Default delimiter spacing normalization (configurable):
+  - One space after <% (and optional kind), and one space before %> unless adjacent to a chomp hyphen.
+  - Template comments <%# ... %> are not perltidy-formatted; inner spacing left as-is except optional edge trim per normalization setting.
+
+5.4 Indentation for code blocks
+- Perl-depth changes are driven by:
+  - Line directives with braces and % end.
+  - Standalone statement tags <% ... %> containing braces.
+  - begin/end helper blocks: lines with begin increase depth until end.
+- Total indent per line = HTML depth + Perl depth.
+- Dedents from closing items apply before the current line is emitted.
+
+5.5 Embedded Perl formatting (perltidy)
+- Statement content: <% ... %> and % ... are sent to perltidy and collapsed to a single line on return.
+- Expression content: <%= ... %>, <%== ... %>, %= ..., %== ... are wrapped as do { ... } for perltidy and then unwrapped; output collapsed to single line; no trailing semicolons added.
+- Default perltidy options (overridable): -i=2 -ci=2 -l=100 -q -se -nbbc -noll.
+- If perltidy is unavailable or returns non-zero, leave the Perl content unmodified and log an error; formatting continues.
+
+6) Algorithm overview
+- Tokenize line-by-line, tracking:
+  - HTML start/end/self-closing tags for depth.
+  - Mojolicious line directives and tags for Perl depth and begin/end handling.
+- Substitute and optionally reformat template tags inline, preserving chomp markers.
+- Rebuild each line with computed indentation; trim trailing spaces; normalize EOL at the end.
+
+7) CLI specification
+- Binary name: mojofmt
+- Usage: mojofmt [options] [paths...]
+- Options:
+  - -w, --write: Overwrite files in place. Before overwriting, write a backup file named <original>.bak alongside the original (overwrites any existing .bak).
+  - -o, --out <file>: Write formatted output to this file. Constraints:
+    - Requires exactly one input file or --stdin.
+    - Conflicts with --write, --check, and --diff (mutually exclusive).
+  - --check: Exit with status 1 if any file would change; do not write.
+  - --diff: Print unified diff of proposed changes; do not write.
+  - --stdin: Read from stdin (no file paths required).
+  - --stdout: Write to stdout (only meaningful with --stdin; default when no --out).
+  - --perltidy <path>: Path to perltidy executable.
+  - --indent <n>: Indent width in spaces (default 2).
+  - --eol <lf|crlf|preserve>: EOL handling (default lf).
+  - --no-space-in-delims: Disable delimiter spacing normalization inside <% %>.
+  - --self-test: Run internal sanity checks (see section 13) and exit with 0/1.
+  - --log-level <error|info|debug>: Set logging level (default error).
+  - --verbose: Shorthand for --log-level info.
+  - --version, --help.
+- File selection:
+  - Accept files and directories; directories are traversed recursively for extensions .ep, .htm.ep, .html.ep.
+- Exit codes:
+  - 0: Success and no changes needed (or wrote changes).
+  - 1: --check found changes OR error occurred OR self-test failed.
+
+8) Configuration
+- CLI-driven in Phase 1. Config file support may be added later.
+- Config keys (if/when config file is added) remain as previously defined (indent_width, eol, normalize_delimiter_spacing, perltidy_path, perltidy_options, extensions, respect_gitignore). Logging level is CLI-only for now.
+
+9) Library API (Python)
+- format_string(src: str, config: Config) -> str
+- format_file(path: Path, config: Config) -> str (if implemented)
+- check_string(src: str, config: Config) -> bool (if implemented)
+- Exceptions:
+  - ParseError for unrecoverable malformed constructs.
+  - PerltidyError for subprocess failures (currently errors are logged and Perl content is passed through unchanged; raising may be added later behind a flag).
+
+10) Logging
+- Uses Python logging; logger name “mojofmt”.
+- Default level: error. Levels:
+  - error: problems (perltidy missing, file processing error).
+  - info: high-level progress (found/unchanged/formatted files, backups and writes).
+  - debug: detailed operations (perltidy command/options, file discovery, other diagnostics).
+- Output format: “mojofmt: LEVEL: message” to stderr.
+
+11) Error handling and diagnostics
+- perltidy not found:
+  - Log an error once; formatter continues without Perl reformatting.
+  - In self-test, absence or failure of perltidy causes self-test to fail (exit 1).
+- Regex/parser issues:
+  - If a line cannot be processed due to malformed mixed tags, log an error with filename and line; leave file unmodified in --write mode.
+- I/O errors:
+  - Log an error with context (path); continue to next file; exit 1 overall if any errors occurred.
+
+12) Performance targets
+- Linear time with respect to file size; thousands of lines acceptable. perltidy calls dominate runtime.
+
+13) Self-test mode
+- Invoked with --self-test.
+- Tests:
+  - perltidy probe: call perltidy on a tiny snippet and verify non-zero-length formatted output different from input (or matching expected spacing); failure if perltidy missing or returns non-zero.
+  - Idempotence: formatting a known mixed template twice yields the same result.
+  - Chomp markers: preserved exactly (e.g., -%> remains).
+  - Raw elements: inner lines of <script>...</script> unchanged.
+  - Delimiter spacing normalization: <%my $x=1;%> becomes <% my $x = 1; %> under default settings.
+- Exit code: 0 on pass, 1 on any failure.
+- Logs: info shows probe status and “Self-test passed”; error lists failures.
+
+14) Test plan (expanded)
+- Golden tests for the cases above plus:
+  - --out: single file and stdin cases; conflicts with --write/--check/--diff enforced.
+  - -w backups: verify <file>.bak is created and overwritten on subsequent runs.
+  - Logging: run with --log-level debug to ensure expected messages appear.
+  - Error flows: perltidy missing; malformed tag line; unreadable file.
+
+15) Examples
+- Format in-place (create backups):
+  mojofmt -w templates/
+- Check without writing (CI):
+  mojofmt --check templates/
+- Show diffs:
+  mojofmt --diff templates/
+- Format one file to a new file:
+  mojofmt -o out.htm.ep in.htm.ep
+- Stdin to a file:
+  cat in.htm.ep | mojofmt --stdin -o out.htm.ep
+- Self-test with logs:
+  mojofmt --self-test --log-level info
+- Debug run:
+  mojofmt --log-level debug --check templates/
+
+16) Milestones
+- M1–M3: Core Phase 1 (lexer/indent, perltidy integration, begin/end handling, raw elements).
+- M4: Hardening (idempotence, tests, EOL handling, CLI polish).
+- M5: Packaging and performance tuning.
+- Added in this revision:
+  - Logging subsystem with levels and verbose shorthand.
+  - --self-test mode including perltidy probe.
+  - --out output file support with conflict rules.
+  - -w backup-on-write behavior.
+
+17) Limitations (unchanged in spirit)
+- Heuristic HTML indentation may be suboptimal on malformed HTML but is stable.
+- No JS/CSS formatting; no attribute reflow.
+- Perl formatting depends on perltidy availability; otherwise Perl inside tags is passed through unchanged.
+
+If you want any tweaks (e.g., backup filename pattern, adding a --no-backup flag, or allowing a configurable backup extension), I can amend the spec accordingly.
