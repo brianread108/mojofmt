@@ -90,7 +90,9 @@ RAW_CLOSE_RE = re.compile(r"^\s*</(?P<name>pre|script|style|textarea)\s*>\s*$", 
 
 # Extended EP block delimiters (opening/closing on their own lines)
 OPEN_BLOCK_RE = re.compile(r'^(?P<base>[ \t]*)<%(?P<left>-?)(?![=#])\s*$')
-CLOSE_BLOCK_RE = re.compile(r'^(?P<base>[ \t]*)(?P<right>-?)%>\s*$')
+CLOSE_BLOCK_RE = re.compile(
+    r'^(?P<base>[ \t]*)(?P<right>-?)%(?:>| >)\s*$'
+)
 
 
 @dataclass
