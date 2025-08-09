@@ -1,7 +1,13 @@
+<<<<<<< HEAD
 # mojofmt
 
 Formatter for Mojolicious Embedded Perl templates (.ep, .htm.ep, .html.ep)
 
+=======
+# Mojolicious Template Formatter
+Formatter for Mojolicious Embedded Perl templates (.ep, .htm.ep, .html.ep)
+
+>>>>>>> 59bfbde88e2686d25b7f6a14692814da8f440e05
 mojofmt formats HTML and Mojolicious EP templates without breaking embedded Perl. It understands line directives (% ...), inline tags (<% ... %>), raw HTML blocks, and can reformat multi-line Perl blocks inside <% ... %> using perltidy (with a safe fallback if perltidy isn’t available).
 
 ## Features
