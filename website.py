@@ -404,7 +404,8 @@ HTML_TEMPLATE = """
 			/* Remove outline/extra vertical space browsers add */
 			vertical-align: middle;
 		}
-
+		
+		
 
         button {background:#a950e6; border:none; color:#fff; border-radius:5px;
                 padding:9px 16px; font-size:15px; cursor:pointer; box-shadow:0 2px 7px -3px #bb76c1;}
@@ -413,7 +414,7 @@ HTML_TEMPLATE = """
         input[type="file"] {margin-bottom:10px;}
         textarea {width:100%; flex:1 1 auto; min-height:30px; max-height:60vh; font-family:'Fira Mono', monospace;
                   font-size:15px; border:2px solid #bdb0da; background:#f6eafe;
-                  border-radius:7px; padding:8px; color:#432d67; resize:vertical; transition:height .2s;}
+                  border-radius:7px; color:#432d67; resize:vertical; transition:height .2s; margin-left:auto;margin-right:auto;}
         select {padding:6px 10px; border-radius:5px; border:1px solid #b993d6;
                 background:#eee0f6; color:#6d378d; font-size:15px;}
         #output_block {background:#16151a !important; color:white !important; border-radius:8px; padding:1em;
@@ -421,6 +422,19 @@ HTML_TEMPLATE = """
                        border:2px solid #bdb0da; flex:1 1 auto; min-height:0;}
         @media (max-width:800px) {.container {flex-direction:column; height:auto;}
                                   .panel {height:auto; min-width:0;}}
+.output-header {
+  margin-top: 8px;
+  display: flex;
+  justify-content: space-between; /* Push left and right sections apart */
+  align-items: center;           /* Vertically align */
+}
+
+.syntax-select {
+  display: flex;
+  align-items: center;
+  gap: 6px; /* Space between label and dropdown */
+}
+
     </style>
     <link href="https://cdn.jsdelivr.net/npm/prismjs@1/themes/prism-tomorrow.min.css"
           rel="stylesheet"
@@ -496,15 +510,17 @@ HTML_TEMPLATE = """
           </label>
         </div>
         <div class="panel">
-            <label>Formatted Output:</label>
-            <div style="margin-top:8px;">
-                <label for="syntaxmode">Output Syntax:</label>
-                <select id="syntaxmode" name="syntaxmode">
-                    <option value="none">Plain Text</option>
-                    <option value="perl">Perl</option>
-                    <option value="html">HTML</option>
-                </select>
-            </div>
+<div class="output-header">
+  <label>Formatted Output:</label>
+  <div class="syntax-select">
+    <label for="syntaxmode">Output Syntax:</label>
+    <select id="syntaxmode" name="syntaxmode">
+      <option value="none">Plain Text</option>
+      <option value="perl">Perl</option>
+      <option value="html">HTML</option>
+    </select>
+  </div>
+</div>
             <pre id="output_block"><code id="output_code" class="language-none"></code></pre>
         </div>
       </div>
