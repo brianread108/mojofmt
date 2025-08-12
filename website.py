@@ -457,7 +457,7 @@ HTML_TEMPLATE = """
 			<span class="version-label">v{{ formatter_version }}</span>
 		</h1>
 		<div class="icon-links">
-			<a href="https://github.com/brianread108" target="_blank" aria-label="GitHub">
+			<a href="https://github.com/brianread108/mojofmt" target="_blank" aria-label="GitHub">
 			  <svg viewBox="0 0 16 16" role="img" aria-hidden="true" width="28" height="28" fill="white" xmlns="http://www.w3.org/2000/svg">
 				<path fill-rule="evenodd"
 				  d="M8 0C3.58 0 0 3.58 0 8a8.003 8.003 0 0 0 5.47 7.59c.4.07.55-.17.55-.38
