@@ -21,7 +21,7 @@
 set -euo pipefail
 
 # Default values
-API_URL="http://localhost:8000"
+API_URL="https://mojofmt.bjsystems.co.uk"
 API_TOKEN=""
 REMOVE_EMPTY=false
 INPUT_FILE=""
